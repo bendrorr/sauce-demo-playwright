@@ -1,0 +1,11 @@
+#browser:
+#  headless: true
+#  timeout: 30000
+
+logging:
+  level:
+    com.automation.framework: DEBUG
+    org.springframework: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
