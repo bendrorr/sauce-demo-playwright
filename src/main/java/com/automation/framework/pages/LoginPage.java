@@ -25,6 +25,10 @@ public class LoginPage implements Loadable {
         page.click(LOGIN_BUTTON);
     }
 
+    public String getErrorMessage() {
+        return page.locator("[data-test='error']").textContent().trim();
+    }
+
     @Override
     public boolean isLoaded() {
         return pageWaiterService.waitForSelector(LOGIN_BUTTON, 3000);

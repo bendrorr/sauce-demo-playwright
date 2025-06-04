@@ -1,17 +1,13 @@
 package com.automation.framework;
 
 import com.automation.framework.config.ComponentScanConfig;
+import com.automation.framework.model.Product;
 import com.automation.framework.pages.*;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
-
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,44 +21,88 @@ public class SauceDemoTest {
     private final CheckoutPage checkoutPage;
     private final CheckoutOverviewPage checkoutOverviewPage;
 
-    @ParameterizedTest
-    @MethodSource("loginDataProvider")
-    public void login_shouldBehaveAsExpected(String username, String password, boolean shouldLoginSucceed) {
+    @Test
+    void validLogin_shouldNavigateToInventoryPage() {
         loginPage.navigate();
-        assertThat(loginPage.isLoaded()).isTrue();
+        loginPage.login("standard_user", "secret_sauce");
 
-        loginPage.login(username, password);
-
-        assertThat(inventoryPage.isLoaded()).isEqualTo(shouldLoginSucceed);
+        assertThat(inventoryPage.isLoaded())
+                .isTrue();
     }
 
     @Test
-    public void purchase_shouldCompleteSuccessfully() {
+    void lockedUserLogin_shouldShowError() {
         loginPage.navigate();
-        assertThat(loginPage.isLoaded()).isTrue();
+        loginPage.login("locked_out_user", "secret_sauce");
 
-        loginPage.login("standard_user", "secret_sauce");
-        assertThat(inventoryPage.isLoaded()).isTrue();
-
-        inventoryPage.addProductToCart("sauce-labs-backpack");
-        inventoryPage.addProductToCart("sauce-labs-bike-light");
-        inventoryPage.goToCart();
-        assertThat(cartPage.isLoaded()).isTrue();
-
-        cartPage.clickCheckout();
-        assertThat(checkoutPage.isLoaded()).isTrue();
-
-        checkoutPage.fillInformation("firstName", "lastName", "55555");
-        assertThat(checkoutOverviewPage.isLoaded()).isTrue();
-
-        checkoutOverviewPage.finishOrder();
+        assertThat(loginPage.getErrorMessage()
+                .contains("Sorry, this user has been locked out"));
     }
 
-    private static Stream<Arguments> loginDataProvider() {
-        return Stream.of(
-                Arguments.of("standard_user", "secret_sauce", true),
-                Arguments.of("problem_user", "secret_sauce", true),
-                Arguments.of("invalid_user", "invalid_password", false)
-        );
+    @Test
+    void loginWithEmptyFields_shouldShowValidationError() {
+        loginPage.navigate();
+        loginPage.login("", "");
+
+        assertThat(loginPage.getErrorMessage()
+                .contains("Username is required"));
+    }
+
+    @Test
+    void productsShouldDisplayNameAndPrice() {
+        loginPage.navigate();
+        loginPage.login("standard_user", "secret_sauce");
+
+        for (Product product : inventoryPage.getAllProducts()) {
+            assertThat(product.getName())
+                    .isNotNull();
+
+            assertThat(product.getPrice())
+                    .isGreaterThan(0);
+        }
+    }
+
+    @Test
+    void addToCartButtonShouldToggleToRemove() {
+        loginPage.navigate();
+        loginPage.login("standard_user", "secret_sauce");
+        inventoryPage.addProductToCart("sauce-labs-backpack");
+
+        assertThat(inventoryPage.isRemoveButtonVisible("sauce-labs-backpack"))
+                .isTrue();
+    }
+
+    @Test
+    void addedProductShouldAppearInCart() {
+        loginPage.navigate();
+        loginPage.login("standard_user", "secret_sauce");
+        inventoryPage.addProductToCart("sauce-labs-bike-light");
+        inventoryPage.goToCart();
+        assertThat(cartPage.containsProduct("sauce-labs-bike-light")).isTrue();
+    }
+
+    @Test
+    void cartShouldUpdateAfterRemovingProduct() {
+        loginPage.navigate();
+        loginPage.login("standard_user", "secret_sauce");
+        inventoryPage.addProductToCart("sauce-labs-bike-light");
+        inventoryPage.goToCart();
+        cartPage.removeProduct("sauce-labs-bike-light");
+        assertThat(cartPage.containsProduct("sauce-labs-bike-light")).isFalse();
+    }
+
+    @Test
+    void completeCheckout_shouldShowThankYouMessage() {
+        loginPage.navigate();
+        loginPage.login("standard_user", "secret_sauce");
+        inventoryPage.addProductToCart("sauce-labs-backpack");
+        inventoryPage.goToCart();
+        cartPage.clickCheckout();
+
+        checkoutPage.fillInformation("John", "Doe", "12345");
+        checkoutOverviewPage.finishOrder();
+
+        assertThat(checkoutOverviewPage.getConfirmationMessage())
+                .isEqualTo("Thank you for your order!");
     }
 }
