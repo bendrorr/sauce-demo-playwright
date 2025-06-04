@@ -1,8 +1,12 @@
 package com.automation.framework.util;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import java.util.Optional;
 import java.util.function.Supplier;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class NullUtil {
 
     public static <T> T getOrNull(Supplier<T> supplier) {
